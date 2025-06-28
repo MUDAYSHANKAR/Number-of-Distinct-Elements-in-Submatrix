@@ -1,0 +1,90 @@
+import sys
+from collections import defaultdict
+
+class FenwickTree:
+    def __init__(self, size):
+        self.tree = [0] * (size + 1)
+
+    def add(self, index, delta):
+        index += 1
+        while index < len(self.tree):
+            self.tree[index] += delta
+            index += index & (-index)
+
+    def query_prefix(self, index):
+        if index < 0:
+            return 0
+        index += 1
+        s = 0
+        while index > 0:
+            s += self.tree[index]
+            index -= index & (-index)
+        return s
+
+def solve_distinct_submatrix(matrix, queries):
+    R = len(matrix)
+    C = len(matrix[0])
+    Q = len(queries)
+    
+    events_by_row = defaultdict(list)
+    
+    QUERY_TYPE = 1
+    
+    for i in range(Q):
+        r1, c1, r2, c2 = queries[i]
+        
+        events_by_row[r2].append((QUERY_TYPE, c2, 1, i))
+        events_by_row[r2].append((QUERY_TYPE, c1 - 1, -1, i))
+        events_by_row[r1 - 1].append((QUERY_TYPE, c2, -1, i))
+        events_by_row[r1 - 1].append((QUERY_TYPE, c1 - 1, 1, i))
+
+    answers = [0] * Q
+    bit = FenwickTree(C)
+    last_row_of_val = {}
+
+    for r in range(R):
+        for c in range(C):
+            val = matrix[r][c]
+            
+            if val in last_row_of_val:
+                prev_r, prev_c = last_row_of_val[val]
+                bit.add(prev_c, -1)
+            
+            bit.add(c, 1)
+            last_row_of_val[val] = (r, c)
+            
+        if r in events_by_row:
+            for event in events_by_row[r]:
+                type, c, sign, q_idx = event
+                if type == QUERY_TYPE:
+                    answers[q_idx] += sign * bit.query_prefix(c)
+                    
+    return answers
+
+
+if __name__ == '__main__':
+    matrix = [
+      [1, 2, 1, 3],
+      [3, 1, 2, 1],
+      [1, 2, 1, 2],
+      [2, 1, 3, 1]
+    ]
+    
+    queries = [
+        (0, 0, 1, 1),
+        (1, 1, 2, 3),
+        (0, 0, 3, 3)
+    ]
+    
+    print("--- Distinct Elements in Submatrix ---")
+    print("\nMatrix:")
+    for row in matrix:
+        print(f"  {row}")
+        
+    print("\nQueries (r1, c1, r2, c2):", queries)
+    
+    results = solve_distinct_submatrix(matrix, queries)
+    
+    print("\n--- Results ---")
+    for i, q in enumerate(queries):
+        print(f"Query {i+1} for rect {q}: Found {results[i]} distinct elements.")
